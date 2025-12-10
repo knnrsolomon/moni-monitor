@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Moni Monitor – Customer</title>
+  </head>
+
+  <body>
+
+    <!-- LOGIN -->
+    <div id="login">
+      <h3>Customer Login</h3>
+      <input id="login_phone" placeholder="Phone"><br><br>
+      <input id="login_pin" type="password" placeholder="PIN"><br><br>
+      <button id="loginBtn">Login</button><br><br>
+      <button id="toSignupBtn">New user? Sign up</button>
+    </div>
+
+    <!-- SIGNUP -->
+    <div id="signup" style="display:none;">
+      <h3>Create Account</h3>
+      <input id="su_name" placeholder="Full Name"><br><br>
+      <input id="su_phone" placeholder="Phone"><br><br>
+      <input id="su_email" placeholder="Email (optional)"><br><br>
+      <input id="su_pin" type="password" placeholder="Choose PIN"><br><br>
+      <button id="signupBtn">Create Account</button><br><br>
+      <button id="backLoginBtn">Back to Login</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" style="display:none;">
+      <h3 id="welcome"></h3>
+
+      <h4>Wallet Balance</h4>
+      <div id="balance">Loading…</div>
+
+      <h4>Transaction History</h4>
+      <table border="1" width="100%">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Reference</th>
+          </tr>
+        </thead>
+        <tbody id="txns">
+          <tr><td colspan="4">Loading…</td></tr>
+        </tbody>
+      </table>
+
+      <br>
+      <button id="logoutBtn">Logout</button>
+    </div>
+
+    <script>
+      // Run after HTML is ready
+      document.addEventListener("DOMContentLoaded", function () {
+        var loginDiv = document.getElementById("login");
+        var signupDiv = document.getElementById("signup");
+        var dashboardDiv = document.getElementById("dashboard");
+
+        var loginPhone = document.getElementById("login_phone");
+        var loginPin = document.getElementById("login_pin");
+
+        var suName = document.getElementById("su_name");
+        var suPhone = document.getElementById("su_phone");
+        var suEmail = document.getElementById("su_email");
+        var suPin = document.getElementById("su_pin");
+
+        var welcome = document.getElementById("welcome");
+        var balance = document.getElementById("balance");
+        var txns = document.getElementById("txns");
+
+        var loginBtn = document.getElementById("loginBtn");
+        var toSignupBtn = document.getElementById("toSignupBtn");
+        var signupBtn = document.getElementById("signupBtn");
+        var backLoginBtn = document.getElementById("backLoginBtn");
+        var logoutBtn = document.getElementById("logoutBtn");
+
+        // Navigation
+        toSignupBtn.onclick = function () {
+          loginDiv.style.display = "none";
+          signupDiv.style.display = "block";
+        };
+
+        backLoginBtn.onclick = function () {
+          signupDiv.style.display = "none";
+          loginDiv.style.display = "block";
+        };
+
+        logoutBtn.onclick = function () {
+          dashboardDiv.style.display = "none";
+          loginDiv.style.display = "block";
+          loginPhone.value = "";
+          loginPin.value = "";
+        };
+
+        // Signup
+        signupBtn.onclick = function () {
+          if (!suName.value || !suPhone.value || !suPin.value) {
+            alert("Name, phone and PIN are required");
+            return;
+          }
+
+          google.script.run
+            .withSuccessHandler(function () {
+              alert("Signup successful. Please login.");
+              signupDiv.style.display = "none";
+              loginDiv.style.display = "block";
+            })
+            .withFailureHandler(function (e) {
+              alert(e.message || "Signup failed");
+            })
+            .registerCustomerWithPin(
+              suName.value,
+              suPhone.value,
+              suEmail.value,
+              suPin.value
+            );
+        };
+
+        // Login
+        loginBtn.onclick = function () {
+          var phone = loginPhone.value.trim();
+          var pin = loginPin.value.trim();
+
+          if (!phone || !pin) {
+            alert("Phone and PIN required");
+            return;
+          }
+
+          balance.innerText = "Loading…";
+          txns.innerHTML = "<tr><td colspan='4'>Loading…</td></tr>";
+
+          google.script.run
+            .withSuccessHandler(function (res) {
+              loginDiv.style.display = "none";
+              signupDiv.style.display = "none";
+              dashboardDiv.style.display = "block";
+
+              welcome.innerText = "Welcome " + res.fullName;
+
+              google.script.run
+                .withSuccessHandler(function (data) {
+                  renderDashboard(data, balance, txns);
+                })
+                .withFailureHandler(function (e) {
+                  balance.innerText = "Error loading wallet";
+                  txns.innerHTML =
+                    "<tr><td colspan='4'>" +
+                    (e.message || "Failed to load transactions") +
+                    "</td></tr>";
+                })
+                .apiGetCustomerDashboard(res.customerId);
+            })
+            .withFailureHandler(function (e) {
+              alert(e.message || "Login failed");
+            })
+            .apiCustomerLogin(phone, pin);
+        };
+      });
+
+      // Renders wallet + transactions
+      function renderDashboard(data, balanceEl, txnsEl) {
+        if (data.error) {
+          balanceEl.innerText = "Error loading wallet";
+          txnsEl.innerHTML =
+            "<tr><td colspan='4'>" + data.message + "</td></tr>";
+          return;
+        }
+
+        balanceEl.innerText = "Balance: ₦" + data.balance;
+        txnsEl.innerHTML = "";
+
+        if (!data.transactions || data.transactions.length === 0) {
+          txnsEl.innerHTML =
+            "<tr><td colspan='4'>No transactions yet</td></tr>";
+          return;
+        }
+
+        data.transactions.forEach(function (t) {
+          var row = document.createElement("tr");
+          row.innerHTML =
+            "<td>" + new Date(t.date).toLocaleString() + "</td>" +
+            "<td>" + t.type + "</td>" +
+            "<td>" + t.amount + "</td>" +
+            "<td>" + t.reference + "</td>";
+          txnsEl.appendChild(row);
+        });
+      }
+    </script>
+
+  </body>
+</html>

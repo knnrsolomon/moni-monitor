@@ -1,0 +1,12 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (if ever added later)
+node_modules/
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
