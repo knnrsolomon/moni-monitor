@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Moni Monitor – Admin</title>
+  </head>
+
+  <body>
+    <h2>Admin Dashboard</h2>
+
+    <!-- LOGIN -->
+    <div id="login">
+      <input id="phone" placeholder="Admin Phone"><br><br>
+      <input id="pin" type="password" placeholder="PIN"><br><br>
+      <button onclick="login()">Login</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" style="display:none;">
+      <h3 id="welcome"></h3>
+
+      <h4>Customers</h4>
+      <table border="1" width="100%">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="customers">
+          <tr><td colspan="3">Loading…</td></tr>
+        </tbody>
+      </table>
+
+      <br>
+      <button onclick="logout()">Logout</button>
+    </div>
+
+    <script>
+      let adminSession = null;
+
+      function login() {
+        const phone = document.getElementById("phone").value;
+        const pin = document.getElementById("pin").value;
+
+        google.script.run
+          .withSuccessHandler(res => {
+            adminSession = res;
+
+            document.getElementById("login").style.display = "none";
+            document.getElementById("dashboard").style.display = "block";
+            document.getElementById("welcome").innerText =
+              "Welcome " + res.fullName + " (" + res.role + ")";
+
+            loadCustomers();
+          })
+          .withFailureHandler(e => alert(e.message || "Login failed"))
+          .apiAgentLogin(phone, pin);
+      }
+
+      function loadCustomers() {
+        google.script.run
+          .withSuccessHandler(renderCustomers)
+          .getAllCustomers();
+      }
+
+      function renderCustomers(data) {
+        const tbody = document.getElementById("customers");
+        tbody.innerHTML = "";
+
+        if (!data || data.length === 0) {
+          tbody.innerHTML =
+            "<tr><td colspan='3'>No customers</td></tr>";
+          return;
+        }
+
+        data.forEach(c => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${c.fullName}</td>
+            <td>${c.phone}</td>
+            <td>${c.status}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      function logout() {
+        adminSession = null;
+        document.getElementById("dashboard").style.display = "none";
+        document.getElementById("login").style.display = "block";
+      }
+    </script>
+  </body>
+</html>
